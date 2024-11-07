@@ -10,8 +10,8 @@ enum RockPaperScissors {
 }
 
 enum Player {
-    Player1 = 0,
-    Player2 = 1,
+    Player1 = 1,
+    Player2 = 2,
 }
 
 static mut STATE: (i8, i8) = (RockPaperScissors::None as i8, RockPaperScissors::None as i8);
@@ -75,8 +75,9 @@ pub fn zkmain() {
         while cursor < input_len {
             let encoded = wasm_input(0);
 
-            perform_command(cursor as i8, encoded as i8);
-            cursor += 1;
+            let player = cursor + 1;
+            perform_command(player as i8, encoded as i8);
+            cursor += 1;    
         }
 
         let winner = who_wins();
