@@ -1,4 +1,1 @@
-# zkWASM
-
-Application ID: [ECF872198133EF7CF1775D6A6E8D41CC](https://explorer.zkwasmhub.com/image/ECF872198133EF7CF1775D6A6E8D41CC)
 
