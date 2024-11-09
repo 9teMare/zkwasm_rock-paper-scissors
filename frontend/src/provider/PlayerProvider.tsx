@@ -21,7 +21,6 @@ export function timeout(delay: number) {
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const { isConnected, address } = useAccount();
-    const rpc = useContext(RpcContext);
     const [players, setPlayers] = useState<{ players: Player[]; state: PlayerState[] }>({ players: [], state: [] });
 
     useEffect(() => {
@@ -36,10 +35,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                     console.log("registering player: ", playerRegisterState);
 
                     const state = await player.getState();
-
-                    console.log("post state: ", state);
-
-                    // const state = await rpc?.queryState(address.replace("0x", ""));
                     setPlayers({ players: [player], state: [state as PlayerState] });
                 } catch (e) {
                     console.error("Failed to register player", e);

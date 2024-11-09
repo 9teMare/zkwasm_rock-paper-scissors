@@ -55,7 +55,8 @@ export default function MainGame() {
     const startGame = async () => {
         if (!game) return;
         const npc = new Player("233", "http://localhost:3000");
-        await npc.register();
+        const npcRegisterState = await npc.register();
+        console.log("registering npc: ", npcRegisterState);
 
         const npcState = await npc.getState();
         setPlayers({ players: [...players!.players, npc], state: [...players!.state, npcState] });
@@ -216,20 +217,24 @@ export default function MainGame() {
                     <h2 className="text-8xl">{score.game}</h2>
                 </ShineBorder>
 
-                <canvas
-                    className="rounded-full"
-                    ref={handCanvasRef}
-                    id="hand-figure-canvas"
-                    width={640}
-                    height={380}
-                    style={{
-                        width: "640px",
-                        height: "380px",
-                        backgroundColor: "#2663ec",
-                        backgroundImage: "url('delphinus-lab.webp')",
-                        backgroundSize: "cover",
-                    }}
-                />
+                <div className="flex flex-col justify-center items-center">
+                    {players?.state[1] && <div>NPC is ready!</div>}
+
+                    <canvas
+                        className="rounded-full"
+                        ref={handCanvasRef}
+                        id="hand-figure-canvas"
+                        width={640}
+                        height={380}
+                        style={{
+                            width: "640px",
+                            height: "380px",
+                            backgroundColor: "#2663ec",
+                            backgroundImage: "url('delphinus-lab.webp')",
+                            backgroundSize: "cover",
+                        }}
+                    />
+                </div>
             </div>
         </div>
     );
