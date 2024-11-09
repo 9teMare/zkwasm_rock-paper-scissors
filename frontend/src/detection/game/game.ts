@@ -8,6 +8,7 @@ export class Game {
 
     constructor(
         private onMessage: (message: string) => void,
+        private onEnd: (result: number[]) => void,
         private onGesture: (gesture: Gesture | null) => void,
         private onGameEnd: (playerWins: number, gameWins: number) => void
     ) {}
@@ -16,13 +17,17 @@ export class Game {
         this.gesture = gesture;
     }
 
+    getGesture(): Gesture {
+        return this.gesture;
+    }
+
     start() {
         clearInterval(this.interval);
 
         let countdown = 3;
         this.onMessage(`${countdown}...`);
 
-        this.onGesture(Gesture.Rock);
+        // this.onGesture(Gesture.Rock);
 
         this.interval = setInterval(() => {
             countdown--;
@@ -30,10 +35,12 @@ export class Game {
 
             if (countdown == 0) {
                 const pickedGesture = this.pickGesture(this.gesture);
+                console.log("Picked gesture", pickedGesture);
                 this.onGesture(pickedGesture);
 
                 setTimeout(() => {
                     this.onMessage(this.findWinner(this.gesture, pickedGesture as number));
+                    this.onEnd([this.gesture, pickedGesture as number]);
                 }, 500);
                 clearInterval(this.interval);
             }

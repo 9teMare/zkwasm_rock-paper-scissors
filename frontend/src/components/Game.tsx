@@ -1,5 +1,5 @@
 import { LandmarkList, Results } from "@mediapipe/hands";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { detectGesture, Gesture } from "../detection/core/gesture-detector";
 import { HandsEstimator } from "../detection/core/hands-estimator";
 import { Game } from "../detection/game/game";
@@ -7,6 +7,11 @@ import { HandFigureScene } from "../detection/hand-figure/hand-figure-scene";
 import { VideoScene } from "../detection/video/VideoScene";
 import { cn } from "../lib/utils";
 import { ShineBorder } from "./ui/ShineBorders";
+import { PlayerContext } from "../provider/PlayerProvider";
+import { Player } from "../../api";
+import { RpcContext } from "../provider/RpcProvider";
+import { useAccount, useSignMessage } from "wagmi";
+import { add } from "three/webgpu";
 
 function getElbowAngle(startMs: number) {
     const currentMs = new Date().getTime() - startMs;
@@ -23,6 +28,12 @@ function getElbowAngle(startMs: number) {
 }
 
 export default function MainGame() {
+    const { players, setPlayers } = useContext(PlayerContext);
+    const { address } = useAccount();
+    const rpc = useContext(RpcContext);
+
+    const { signMessageAsync } = useSignMessage();
+
     const handCanvasRef = useRef<HTMLCanvasElement>(null);
     const [handsEstimator] = useState(new HandsEstimator());
 
@@ -35,12 +46,43 @@ export default function MainGame() {
     const [gameOutput, setGameOutput] = useState<string>("");
     const [score, setScore] = useState({ player: 0, game: 0 });
 
-    const startGame = () => {
+    const [moves, setMoves] = useState<number[]>([]);
+
+    const [finalGameState, setFinalGameState] = useState<any>();
+
+    const [isSettling, setIsSettling] = useState(false);
+
+    const startGame = async () => {
         if (!game) return;
+        const npc = new Player("233", "http://localhost:3000");
+        await npc.register();
+
+        const npcState = await npc.getState();
+        setPlayers({ players: [...players!.players, npc], state: [...players!.state, npcState] });
+
         game.setGesture(Gesture.Unknown);
         game.start();
         setGameStartTime(new Date().getTime());
     };
+
+    const signAndSettle = useCallback(async () => {
+        const msg = await signMessageAsync({
+            account: address,
+            message: "zkRPS",
+        });
+
+        console.log(msg);
+
+        if (rpc) {
+            try {
+                const gameState = await rpc!.queryState(msg.replace("0x", ""));
+                console.log(gameState);
+                setFinalGameState(gameState);
+            } catch (e) {
+                console.error("Failed to query state", e);
+            }
+        }
+    }, [address, rpc]);
 
     const animate = useCallback(() => {
         requestAnimationFrame(animate);
@@ -74,11 +116,17 @@ export default function MainGame() {
     useEffect(() => {
         setGame(
             new Game(
-                (message) => {
-                    // if (gameOutputRef.current) gameOutputRef.current.innerHTML = message;
-                    setGameOutput(message);
+                async (message) => {
+                    {
+                        setGameOutput(message);
+                    }
                 },
-                (gesture) => setPickedGesture(gesture),
+                async (result: number[]) => {
+                    setMoves(result);
+                },
+                async (gesture) => {
+                    setPickedGesture(gesture);
+                },
                 (playerWins, gameWins) => {
                     setScore({ player: playerWins, game: gameWins });
                 }
@@ -92,18 +140,62 @@ export default function MainGame() {
         animate();
     }, [animate]);
 
+    useEffect(() => {
+        async function settle() {
+            if (isSettling || !players) return;
+            setIsSettling(true);
+
+            console.log(players);
+
+            console.log(moves);
+
+            console.log(players.players[0]);
+
+            await players.players[0].makeMove(moves[0]);
+            const playerState = await players?.players[0].getState();
+
+            console.log(playerState);
+
+            await players?.players[1].makeMove(moves[1]);
+            const npcState = await players?.players[1].getState();
+
+            console.log(npcState);
+
+            setPlayers({ players: players!.players, state: [playerState, npcState] });
+
+            signAndSettle();
+        }
+
+        if (moves.length === 2) {
+            settle();
+        }
+    }, [moves, isSettling, signAndSettle]);
+
     return (
         <div className="flex flex-col w-full h-full justify-start items-center space-y-8">
             <h1 className="text-center space-y-2 font-bold text-5xl" id="game-output">
                 {gameOutput ? <p>{gameOutput === "Unknown" ? "Failed to detect" : gameOutput}</p> : <p>Game waiting to be started</p>}
             </h1>
 
+            {/* {moves.length !== 2 ? (
+                <button className="btn btn-primary" onClick={startGame}>
+                    Start Game
+                </button>
+            ) : (
+                <button className="btn btn-primary" onClick={signAndSettle}>
+                    Sign and Settle
+                </button>
+            )} */}
             <button className="btn btn-primary" onClick={startGame}>
                 Start Game
             </button>
 
             <div className="flex w-full justify-center items-center space-x-4 relative">
-                <VideoScene results={results} width={640} height={380} />
+                <div className="flex flex-col justify-center items-center">
+                    {players?.state[0] && <div>You are in!</div>}
+
+                    <VideoScene results={results} width={640} height={380} />
+                </div>
 
                 <ShineBorder
                     color="#2663ec"

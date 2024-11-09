@@ -1,0 +1,3 @@
+[submodule "zkwasm-mini-rollup"]
+	path = zkwasm-mini-rollup
+	url = https://github.com/DelphinusLab/zkwasm-mini-rollup.git
