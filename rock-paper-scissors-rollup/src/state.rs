@@ -39,9 +39,9 @@ pub type RockPaperScissorsPlayer = Player<PlayerData>;
 #[derive(Serialize)]
 pub struct State {
     counter: u64,
-    // play: i8,
     player1_move: i8,
     player2_move: i8,
+    winner: i8,
 }
 
 impl State {
@@ -66,6 +66,7 @@ impl State {
             counter: 0,
             player1_move: RockPaperScissors::None as i8,
             player2_move: RockPaperScissors::None as i8,
+            winner: -1,
         }
     }
 
@@ -75,9 +76,7 @@ impl State {
     }
 
     pub fn preempt() -> bool {
-        let state = unsafe { &STATE };
-        return state.player1_move != RockPaperScissors::None as i8
-            && state.player2_move != RockPaperScissors::None as i8;
+        false
     }
 
     pub fn flush_settlement() -> Vec<u8> {
@@ -95,6 +94,7 @@ pub static mut STATE: State = State {
     counter: 0,
     player1_move: RockPaperScissors::None as i8,
     player2_move: RockPaperScissors::None as i8,
+    winner: -1,
 };
 
 pub struct Transaction {
@@ -105,7 +105,6 @@ pub struct Transaction {
 const AUTOTICK: u64 = 0;
 const INSTALL_PLAYER: u64 = 1;
 const MAKE_PLAY: u64 = 2;
-const UNINSTALL_PLAYER: u64 = 3;
 
 const ERROR_PLAYER_ALREADY_EXIST: u32 = 1;
 const ERROR_PLAYER_NOT_EXIST: u32 = 2;
@@ -137,6 +136,46 @@ impl Transaction {
         }
     }
 
+    pub fn reset(&self) {
+        unsafe {
+            STATE.player1_move = RockPaperScissors::None as i8;
+            STATE.player2_move = RockPaperScissors::None as i8;
+            STATE.winner = -1;
+        }
+    }
+
+    pub fn who_wins(&self) -> i8 {
+        if unsafe { STATE.player1_move } == RockPaperScissors::None as i8
+            || unsafe { STATE.player2_move } == RockPaperScissors::None as i8
+        {
+            return -1;
+        }
+
+        if unsafe { STATE.player1_move } == unsafe { STATE.player2_move } {
+            return 0;
+        }
+
+        if unsafe { STATE.player1_move } == RockPaperScissors::Rock as i8
+            && unsafe { STATE.player2_move } == RockPaperScissors::Scissors as i8
+        {
+            return 1;
+        }
+
+        if unsafe { STATE.player1_move } == RockPaperScissors::Scissors as i8
+            && unsafe { STATE.player2_move } == RockPaperScissors::Paper as i8
+        {
+            return 1;
+        }
+
+        if unsafe { STATE.player1_move } == RockPaperScissors::Paper as i8
+            && unsafe { STATE.player2_move } == RockPaperScissors::Rock as i8
+        {
+            return 1;
+        }
+
+        return 2;
+    }
+
     pub fn make_play(&self, _pkey: &[u64; 4]) -> u32 {
         // let player = RockPaperScissorsPlayer::get(pkey);
         let pid = RockPaperScissorsPlayer::pkey_to_pid(_pkey);
@@ -152,12 +191,30 @@ impl Transaction {
                 player.data.play = play;
 
                 unsafe {
+                    if STATE.player1_move != RockPaperScissors::None as i8
+                        && STATE.player2_move != RockPaperScissors::None as i8
+                    {
+                        self.reset();
+                    }
+                }
+
+                unsafe {
                     if STATE.player1_move == RockPaperScissors::None as i8 {
                         STATE.player1_move = play;
                     } else if STATE.player1_move != RockPaperScissors::None as i8
                         && STATE.player2_move == RockPaperScissors::None as i8
                     {
                         STATE.player2_move = play;
+                    }
+                }
+
+                unsafe {
+                    if STATE.player1_move != RockPaperScissors::None as i8
+                        && STATE.player2_move != RockPaperScissors::None as i8
+                    {
+                        let winner = unsafe { self.who_wins() };
+
+                        STATE.winner = winner;
                     }
                 }
 

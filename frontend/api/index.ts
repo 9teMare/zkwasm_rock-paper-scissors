@@ -1,5 +1,4 @@
-import { query, ZKWasmAppRpc, LeHexBN } from "zkwasm-ts-server";
-import { timeout } from "../src/provider/PlayerProvider";
+import { ZKWasmAppRpc } from "zkwasm-ts-server";
 
 function bytesToHex(bytes: Array<number>): string {
     return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");

@@ -1,12 +1,12 @@
-import {LandmarkList} from "@mediapipe/hands";
-import {transformToXYPlane} from "../math/transform-to-x-y-plane";
-import {HandLandmarks} from "./hand-landmarks";
+import { LandmarkList } from "@mediapipe/hands";
+import { transformToXYPlane } from "../math/transform-to-x-y-plane";
+import { HandLandmarks } from "./hand-landmarks";
 
 export enum Gesture {
-    Unknown,
-    Rock,
-    Paper,
-    Scissors
+    Unknown = -1,
+    Rock = 0,
+    Paper = 1,
+    Scissors = 2,
 }
 
 function isFingerStretched(landmarks: LandmarkList, finger: number[]): boolean {
@@ -21,7 +21,12 @@ export function detectGesture(landmarks: LandmarkList | null): Gesture {
     landmarks = transformToXYPlane(landmarks);
 
     const index = [HandLandmarks.Index_finger_mcp, HandLandmarks.Index_finger_pip, HandLandmarks.Index_finger_dip, HandLandmarks.Index_finger_tip];
-    const middle = [HandLandmarks.Middle_finger_mcp, HandLandmarks.Middle_finger_pip, HandLandmarks.Middle_finger_dip, HandLandmarks.Middle_finger_tip];
+    const middle = [
+        HandLandmarks.Middle_finger_mcp,
+        HandLandmarks.Middle_finger_pip,
+        HandLandmarks.Middle_finger_dip,
+        HandLandmarks.Middle_finger_tip,
+    ];
     const ring = [HandLandmarks.Ring_finger_mcp, HandLandmarks.Ring_finger_pip, HandLandmarks.Ring_finger_dip, HandLandmarks.Ring_finger_tip];
     const pinky = [HandLandmarks.Pinky_mcp, HandLandmarks.Pinky_pip, HandLandmarks.Pinky_dip, HandLandmarks.Pinky_tip];
 

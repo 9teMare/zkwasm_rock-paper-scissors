@@ -1,17 +1,16 @@
 import { LandmarkList, Results } from "@mediapipe/hands";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useAccount, useSignMessage } from "wagmi";
+import { Player } from "../../api";
 import { detectGesture, Gesture } from "../detection/core/gesture-detector";
 import { HandsEstimator } from "../detection/core/hands-estimator";
 import { Game } from "../detection/game/game";
 import { HandFigureScene } from "../detection/hand-figure/hand-figure-scene";
 import { VideoScene } from "../detection/video/VideoScene";
 import { cn } from "../lib/utils";
-import { ShineBorder } from "./ui/ShineBorders";
-import { PlayerContext } from "../provider/PlayerProvider";
-import { Player } from "../../api";
+import { PlayerContext, timeout } from "../provider/PlayerProvider";
 import { RpcContext } from "../provider/RpcProvider";
-import { useAccount, useSignMessage } from "wagmi";
-import { add } from "three/webgpu";
+import { ShineBorder } from "./ui/ShineBorders";
 
 function getElbowAngle(startMs: number) {
     const currentMs = new Date().getTime() - startMs;
@@ -48,42 +47,92 @@ export default function MainGame() {
 
     const [moves, setMoves] = useState<number[]>([]);
 
-    const [finalGameState, setFinalGameState] = useState<any>();
+    const [verificationState, setVerificationState] = useState<"NOT YET" | "VERIFYING" | "VERIFIED" | "VERIFICATION FAILED">("NOT YET");
 
     const [isSettling, setIsSettling] = useState(false);
 
     const startGame = async () => {
         if (!game) return;
-        const npc = new Player("233", "http://localhost:3000");
-        const npcRegisterState = await npc.register();
-        console.log("registering npc: ", npcRegisterState);
+        // const npc = new Player("233", "http://localhost:3000");
+        // const npcRegisterState = await npc.register();
+        // console.log("registering npc: ", npcRegisterState);
 
-        const npcState = await npc.getState();
-        setPlayers({ players: [...players!.players, npc], state: [...players!.state, npcState] });
-
+        // const npcState = await npc.getState();
+        // setPlayers({ players: [...players!.players, npc], state: [...players!.state, npcState] });
+        // await timeout(2000);
+        setVerificationState("NOT YET");
         game.setGesture(Gesture.Unknown);
         game.start();
         setGameStartTime(new Date().getTime());
     };
 
+    // const registerNPC = useCallback(async () => {
+    //     if (!players?.players[0]) return;
+    //     const npc = new Player("233", "http://localhost:3000");
+    //     const npcRegisterState = await npc.register();
+    //     console.log("registering npc: ", npcRegisterState);
+
+    //     const npcState = await npc.getState();
+    //     setPlayers({ players: [...players!.players, npc], state: [...players!.state, npcState] });
+    //     // await timeout(2000);
+    // }, []);
+
+    const settle = useCallback(async () => {
+        if (isSettling || !players) return;
+        setIsSettling(true);
+
+        console.log(moves);
+
+        await players.players[0].makeMove(moves[0]);
+        const playerState = await players?.players[0].getState();
+
+        console.log(playerState);
+
+        await timeout(2000);
+
+        await players?.players[1].makeMove(moves[1]);
+        const npcState = await players?.players[1].getState();
+
+        console.log(npcState);
+
+        setPlayers({ players: [...players!.players], state: [playerState, npcState] });
+
+        signAndSettle();
+
+        setMoves([]);
+    }, [isSettling, players, moves]);
+
     const signAndSettle = useCallback(async () => {
         const msg = await signMessageAsync({
             account: address,
-            message: "zkRPS",
+            message: `zkRPS - ${gameOutput}`,
         });
 
-        console.log(msg);
+        setVerificationState("VERIFYING");
 
         if (rpc) {
             try {
+                await timeout(2000);
                 const gameState = await rpc!.queryState(msg.replace("0x", ""));
                 console.log(gameState);
-                setFinalGameState(gameState);
+                //@ts-ignore
+                const { state } = JSON.parse(gameState.data);
+                console.log("state", state);
+                console.log("gameOutput", gameOutput);
+                if (gameOutput.toLocaleLowerCase().includes("win") && state.winner === 1) {
+                    setVerificationState("VERIFIED");
+                } else if (gameOutput.toLocaleLowerCase().includes("lose!") && state.winner === 2) {
+                    setVerificationState("VERIFIED");
+                } else if (gameOutput.toLocaleLowerCase().includes("tie") && state.winner === 0) {
+                    setVerificationState("VERIFIED");
+                } else {
+                    setVerificationState("VERIFICATION FAILED");
+                }
             } catch (e) {
                 console.error("Failed to query state", e);
             }
         }
-    }, [address, rpc]);
+    }, [address, rpc, gameOutput]);
 
     const animate = useCallback(() => {
         requestAnimationFrame(animate);
@@ -142,40 +191,21 @@ export default function MainGame() {
     }, [animate]);
 
     useEffect(() => {
-        async function settle() {
-            if (isSettling || !players) return;
-            setIsSettling(true);
-
-            console.log(players);
-
-            console.log(moves);
-
-            console.log(players.players[0]);
-
-            await players.players[0].makeMove(moves[0]);
-            const playerState = await players?.players[0].getState();
-
-            console.log(playerState);
-
-            await players?.players[1].makeMove(moves[1]);
-            const npcState = await players?.players[1].getState();
-
-            console.log(npcState);
-
-            setPlayers({ players: players!.players, state: [playerState, npcState] });
-
-            signAndSettle();
-        }
-
         if (moves.length === 2) {
             settle();
         }
-    }, [moves, isSettling, signAndSettle]);
+    }, [moves, settle]);
 
     return (
         <div className="flex flex-col w-full h-full justify-start items-center space-y-8">
             <h1 className="text-center space-y-2 font-bold text-5xl" id="game-output">
-                {gameOutput ? <p>{gameOutput === "Unknown" ? "Failed to detect" : gameOutput}</p> : <p>Game waiting to be started</p>}
+                {gameOutput ? (
+                    <p>
+                        {gameOutput === "Unknown" ? "Failed to detect" : gameOutput} - {verificationState}
+                    </p>
+                ) : (
+                    <p>Game waiting to be started</p>
+                )}
             </h1>
 
             {/* {moves.length !== 2 ? (

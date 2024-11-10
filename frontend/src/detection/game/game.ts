@@ -40,7 +40,7 @@ export class Game {
 
                 setTimeout(() => {
                     this.onMessage(this.findWinner(this.gesture, pickedGesture as number));
-                    this.onEnd([this.gesture, pickedGesture as number]);
+                    this.onEnd([this.gesture as number, pickedGesture as number]);
                 }, 500);
                 clearInterval(this.interval);
             }
@@ -73,6 +73,6 @@ export class Game {
 
         this.gameWins++;
         this.onGameEnd(this.playerWins, this.gameWins);
-        return "You loose!";
+        return "You lose!";
     }
 }
