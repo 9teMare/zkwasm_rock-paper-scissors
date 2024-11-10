@@ -8,7 +8,7 @@ function App() {
                 <div className="flex w-full justify-between items-center">
                     <div className="w-fit">
                         <img src="dolphin.png" alt="Dolphin" className="w-20 h-20 absolute top-4 left-6" />
-                        <h1 className="text-center">=Delphinuslab=</h1>
+                        <h1 className="text-center">=Delphinus Lab=</h1>
                         <h2 className="w-full text-justify text-2xl after:content-[''] after:inline-block after:w-full after:h-0 text-accent">
                             {`zkWASM::{Rock, Paper, Scissors}`}
                         </h2>
