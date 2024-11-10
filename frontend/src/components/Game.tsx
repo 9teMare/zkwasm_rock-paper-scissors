@@ -1,7 +1,6 @@
 import { LandmarkList, Results } from "@mediapipe/hands";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useAccount, useSignMessage } from "wagmi";
-import { Player } from "../../api";
 import { detectGesture, Gesture } from "../detection/core/gesture-detector";
 import { HandsEstimator } from "../detection/core/hands-estimator";
 import { Game } from "../detection/game/game";
@@ -11,6 +10,7 @@ import { cn } from "../lib/utils";
 import { PlayerContext, timeout } from "../provider/PlayerProvider";
 import { RpcContext } from "../provider/RpcProvider";
 import { ShineBorder } from "./ui/ShineBorders";
+import { BadgeCheckIcon, BadgeXIcon, CircleDashedIcon } from "lucide-react";
 
 function getElbowAngle(startMs: number) {
     const currentMs = new Date().getTime() - startMs;
@@ -47,13 +47,15 @@ export default function MainGame() {
 
     const [moves, setMoves] = useState<number[]>([]);
 
-    const [verificationState, setVerificationState] = useState<"NOT YET" | "VERIFYING" | "VERIFIED" | "VERIFICATION FAILED">("NOT YET");
+    const [verificationState, setVerificationState] = useState<"NOT YET VERIFIED" | "VERIFYING" | "VERIFIED" | "VERIFICATION FAILED">(
+        "NOT YET VERIFIED"
+    );
 
     const [isSettling, setIsSettling] = useState(false);
 
     const startGame = async () => {
         if (!game) return;
-        setVerificationState("NOT YET");
+        setVerificationState("NOT YET VERIFIED");
         setMoves([]);
         game.setGesture(Gesture.Unknown);
         game.start();
@@ -220,25 +222,25 @@ export default function MainGame() {
 
     return (
         <div className="flex flex-col w-full h-full justify-start items-center space-y-8">
-            <h1 className="text-center space-y-2 font-bold text-5xl" id="game-output">
-                {gameOutput ? (
-                    <p>
-                        {gameOutput === "Unknown" ? "Failed to detect" : gameOutput} - {verificationState}
-                    </p>
+            <div className="text-center font-bold text-5xl" id="game-output">
+                {gameOutput || isSettling ? (
+                    <div className="flex space-x-4 justify-center items-center">
+                        <h1 className="text-center flex font-bold text-5xl">{gameOutput === "Unknown" ? "Failed to detect" : gameOutput}</h1>
+                        {verificationState === "VERIFIED" ? (
+                            <BadgeCheckIcon className="text-success" size={32} />
+                        ) : verificationState === "VERIFICATION FAILED" ? (
+                            <BadgeXIcon className="text-error" size={32} />
+                        ) : verificationState === "VERIFYING" ? (
+                            <CircleDashedIcon className="animate animate-spin" size={32} />
+                        ) : verificationState === "NOT YET VERIFIED" ? (
+                            <p>Waiting for verification</p>
+                        ) : null}
+                    </div>
                 ) : (
-                    <p>Game waiting to be started</p>
+                    <h1 className="text-center flex font-bold text-5xl">Game waiting to be started</h1>
                 )}
-            </h1>
+            </div>
 
-            {/* {moves.length !== 2 ? (
-                <button className="btn btn-primary" onClick={startGame}>
-                    Start Game
-                </button>
-            ) : (
-                <button className="btn btn-primary" onClick={signAndSettle}>
-                    Sign and Settle
-                </button>
-            )} */}
             <button className="btn btn-primary" onClick={startGame}>
                 Start Game
             </button>
