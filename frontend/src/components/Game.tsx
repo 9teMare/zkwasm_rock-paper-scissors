@@ -53,14 +53,8 @@ export default function MainGame() {
 
     const startGame = async () => {
         if (!game) return;
-        // const npc = new Player("233", "http://localhost:3000");
-        // const npcRegisterState = await npc.register();
-        // console.log("registering npc: ", npcRegisterState);
-
-        // const npcState = await npc.getState();
-        // setPlayers({ players: [...players!.players, npc], state: [...players!.state, npcState] });
-        // await timeout(2000);
         setVerificationState("NOT YET");
+        setMoves([]);
         game.setGesture(Gesture.Unknown);
         game.start();
         setGameStartTime(new Date().getTime());
@@ -78,7 +72,7 @@ export default function MainGame() {
     // }, []);
 
     const settle = useCallback(async () => {
-        if (isSettling || !players) return;
+        if (moves.length !== 2 || !players) return;
         setIsSettling(true);
 
         console.log(moves);
@@ -97,12 +91,6 @@ export default function MainGame() {
 
         setPlayers({ players: [...players!.players], state: [playerState, npcState] });
 
-        signAndSettle();
-
-        setMoves([]);
-    }, [isSettling, players, moves]);
-
-    const signAndSettle = useCallback(async () => {
         const msg = await signMessageAsync({
             account: address,
             message: `zkRPS - ${gameOutput}`,
@@ -119,9 +107,9 @@ export default function MainGame() {
                 const { state } = JSON.parse(gameState.data);
                 console.log("state", state);
                 console.log("gameOutput", gameOutput);
-                if (gameOutput.toLocaleLowerCase().includes("win") && state.winner === 1) {
+                if (gameOutput.toLocaleLowerCase().includes("won") && state.winner === 1) {
                     setVerificationState("VERIFIED");
-                } else if (gameOutput.toLocaleLowerCase().includes("lose!") && state.winner === 2) {
+                } else if (gameOutput.toLocaleLowerCase().includes("lose") && state.winner === 2) {
                     setVerificationState("VERIFIED");
                 } else if (gameOutput.toLocaleLowerCase().includes("tie") && state.winner === 0) {
                     setVerificationState("VERIFIED");
@@ -131,8 +119,42 @@ export default function MainGame() {
             } catch (e) {
                 console.error("Failed to query state", e);
             }
+            setMoves([]);
+            setIsSettling(false);
         }
-    }, [address, rpc, gameOutput]);
+    }, [players, moves, gameOutput, address, rpc]);
+
+    // const signAndSettle = useCallback(async () => {
+    //     const msg = await signMessageAsync({
+    //         account: address,
+    //         message: `zkRPS - ${gameOutput}`,
+    //     });
+
+    //     setVerificationState("VERIFYING");
+
+    //     if (rpc) {
+    //         try {
+    //             await timeout(2000);
+    //             const gameState = await rpc!.queryState(msg.replace("0x", ""));
+    //             console.log(gameState);
+    //             //@ts-ignore
+    //             const { state } = JSON.parse(gameState.data);
+    //             console.log("state", state);
+    //             console.log("gameOutput", gameOutput);
+    //             if (gameOutput.toLocaleLowerCase().includes("won") && state.winner === 1) {
+    //                 setVerificationState("VERIFIED");
+    //             } else if (gameOutput.toLocaleLowerCase().includes("lose") && state.winner === 2) {
+    //                 setVerificationState("VERIFIED");
+    //             } else if (gameOutput.toLocaleLowerCase().includes("tie") && state.winner === 0) {
+    //                 setVerificationState("VERIFIED");
+    //             } else {
+    //                 setVerificationState("VERIFICATION FAILED");
+    //             }
+    //         } catch (e) {
+    //             console.error("Failed to query state", e);
+    //         }
+    //     }
+    // }, [address, rpc, gameOutput]);
 
     const animate = useCallback(() => {
         requestAnimationFrame(animate);
@@ -191,10 +213,10 @@ export default function MainGame() {
     }, [animate]);
 
     useEffect(() => {
-        if (moves.length === 2) {
+        if (!isSettling && moves.length === 2 && players?.players.length === 2) {
             settle();
         }
-    }, [moves, settle]);
+    }, [moves, settle, isSettling]);
 
     return (
         <div className="flex flex-col w-full h-full justify-start items-center space-y-8">
